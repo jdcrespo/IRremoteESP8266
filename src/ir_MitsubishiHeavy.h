@@ -127,6 +127,39 @@ const uint8_t kMitsubishiHeavy88SwingVLowest =    0b111;  // 7
 // Byte[9] is Power & Mode & Temp.
 
 
+// ZJS (88 bit)
+const uint8_t kMitsubishiHeavy48ZjsSig[kMitsubishiHeavy48StateLength] = {
+    0xD5, 0x00, 0x00, 0x00, 0x00, 0x00};
+
+// Byte[2]
+// Byte[2] is Power & Mode & Temp.
+// Temp Mask 0b11110000
+const uint8_t kMitsubishiHeavy48MinTemp = 17;     // 17C
+const uint8_t kMitsubishiHeavy48MaxTemp = 31;     // 31C
+const uint8_t kMitsubishiHeavy48ModeOffset = 0;
+// Power Mask =      0b00001000;                // Byte 2 on ZJS
+const uint8_t kMitsubishiHeavy48PowerOffset = 3;  // Byte 2 on ZJS
+// Mode Mask  =      0b00000111;                // Byte 2 on ZJS
+const uint8_t kMitsubishiHeavy48Auto = 0;         // 0b000
+const uint8_t kMitsubishiHeavy48Cool = 1;         // 0b001
+const uint8_t kMitsubishiHeavy48Heat = 4;         // 0b100
+const uint8_t kMitsubishiHeavy48Dry =  2;         // 0b010
+
+// Byte[4] is Fan & VSwing.
+// Fan Mask 0b01100000
+const uint8_t kMitsubishiHeavy48FanAuto =  0;   // 0b00
+const uint8_t kMitsubishiHeavy48FanHigh =  1;   // 0b01
+const uint8_t kMitsubishiHeavy48FanMed =   2;   // 0b10
+const uint8_t kMitsubishiHeavy48FanLow =   3;   // 0b11
+const uint8_t kMitsubishiHeavy48FanByte4Offset = 5;
+const uint8_t kMitsubishiHeavy48FanByte4Size = 2;
+// SwingV Mask 0b00011000
+const uint8_t kMitsubishiHeavy48SwingVOff =       0b10;  // 2
+const uint8_t kMitsubishiHeavy48SwingVAuto =      0b01;  // 1
+const uint8_t kMitsubishiHeavy48SwingVHigh =   0b00;  // 0
+const uint8_t kMitsubishiHeavy48SwingVByte4Offset = 3;
+const uint8_t kMitsubishiHeavy48SwingVByte4Size = 2;
+
 // Classes
 
 /// Class for handling detailed Mitsubishi Heavy 152-bit A/C messages.
@@ -290,6 +323,67 @@ class IRMitsubishiHeavy88Ac {
   /// @endcond
 #endif  // UNIT_TEST
   uint8_t remote_state[kMitsubishiHeavy88StateLength];  ///< State in code form
+  void checksum(void);
+};
+
+/// Class for handling detailed Mitsubishi Heavy 48-bit A/C messages.
+class IRMitsubishiHeavy48Ac {
+ public:
+  explicit IRMitsubishiHeavy48Ac(const uint16_t pin,
+                                 const bool inverted = false,
+                                 const bool use_modulation = true);
+
+  void stateReset(void);
+  void flipState(void);
+  uint8_t flipByte(uint8_t c);
+
+#if SEND_MITSUBISHIHEAVY
+  void send(const uint16_t repeat = kMitsubishiHeavy88MinRepeat);
+#endif  // SEND_MITSUBISHIHEAVY
+  void begin(void);
+  void on(void);
+  void off(void);
+
+  void setPower(const bool on);
+  bool getPower(void);
+
+  void setTemp(const uint8_t temp);
+  uint8_t getTemp(void);
+
+  void setFan(const uint8_t fan);
+  uint8_t getFan(void);
+
+  void setMode(const uint8_t mode);
+  uint8_t getMode(void);
+
+  void setSwingVertical(const uint8_t pos);
+  uint8_t getSwingVertical(void);
+
+  uint8_t* getRaw(void);
+  void setRaw(const uint8_t* data);
+
+  static bool checkZjsSig(const uint8_t *state);
+  static bool validChecksum(
+      const uint8_t *state,
+      const uint16_t length = kMitsubishiHeavy88StateLength);
+  static uint8_t convertMode(const stdAc::opmode_t mode);
+  static uint8_t convertFan(const stdAc::fanspeed_t speed);
+  static uint8_t convertSwingV(const stdAc::swingv_t position);
+  static stdAc::opmode_t toCommonMode(const uint8_t mode);
+  static stdAc::fanspeed_t toCommonFanSpeed(const uint8_t speed);
+  static stdAc::swingv_t toCommonSwingV(const uint8_t pos);
+  static stdAc::swingh_t toCommonSwingH(const uint8_t pos);
+  stdAc::state_t toCommon(void);
+  String toString(void);
+#ifndef UNIT_TEST
+
+ private:
+  IRsend _irsend;
+#else  // UNIT_TEST
+  IRsendTest _irsend;
+#endif  // UNIT_TEST
+  // The state of the IR remote in IR code form.
+  uint8_t remote_state[kMitsubishiHeavy48StateLength];
   void checksum(void);
 };
 #endif  // IR_MITSUBISHIHEAVY_H_

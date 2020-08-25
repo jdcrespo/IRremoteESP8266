@@ -827,8 +827,9 @@ enum decode_type_t {
   SANYO_AC,
   VOLTAS,  // 90
   METZ,
+  MITSUBISHI_HEAVY_48,
   // Add new entries before this one, and update it to point to the last entry.
-  kLastDecodeType = METZ,
+  kLastDecodeType = MITSUBISHI_HEAVY_48,
 };
 
 // Message lengths & required repeat values
@@ -966,6 +967,9 @@ const uint16_t kMitsubishi112MinRepeat = kNoRepeat;
 const uint16_t kMitsubishiHeavy88StateLength = 11;
 const uint16_t kMitsubishiHeavy88Bits = kMitsubishiHeavy88StateLength * 8;
 const uint16_t kMitsubishiHeavy88MinRepeat = kNoRepeat;
+const uint16_t kMitsubishiHeavy48StateLength = 6;
+const uint16_t kMitsubishiHeavy48Bits = kMitsubishiHeavy48StateLength * 8;
+const uint16_t kMitsubishiHeavy48MinRepeat = kNoRepeat;
 const uint16_t kMitsubishiHeavy152StateLength = 19;
 const uint16_t kMitsubishiHeavy152Bits = kMitsubishiHeavy152StateLength * 8;
 const uint16_t kMitsubishiHeavy152MinRepeat = kNoRepeat;

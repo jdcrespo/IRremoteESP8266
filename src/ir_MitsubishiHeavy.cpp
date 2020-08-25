@@ -28,6 +28,16 @@ const uint16_t kMitsubishiHeavyOneSpace = 420;
 const uint16_t kMitsubishiHeavyZeroSpace = 1220;
 const uint32_t kMitsubishiHeavyGap = kDefaultMessageGap;  // Just a guess.
 
+// Specifics constants for Mitsubishi Heavy 48 bits A/C
+const uint16_t kMitsubishiHeavy48HdrMark = 6000;
+const uint16_t kMitsubishiHeavy48HdrSpace = 7500;
+const uint16_t kMitsubishiHeavy48BitMark = 450;
+const uint16_t kMitsubishiHeavy48OneSpace = 3500;
+const uint16_t kMitsubishiHeavy48ZeroSpace = 1500;
+const uint16_t kMitsubishiHeavy48FootrMark = 7500;
+const uint16_t kMitsubishiHeavy48FootrSpace = 450;
+
+
 using irutils::addBoolToString;
 using irutils::addIntToString;
 using irutils::addLabeledString;
@@ -39,6 +49,32 @@ using irutils::setBit;
 using irutils::setBits;
 
 #if SEND_MITSUBISHIHEAVY
+
+/// Send a MitsubishiHeavy 48-bit A/C message.
+/// Status: BETA / Appears to be working. Needs testing against a real device.
+/// @param[in] data The message to be sent.
+/// @param[in] nbytes The number of bytes of message to be sent.
+/// @param[in] repeat The number of times the command is to be repeated.
+void IRsend::sendMitsubishiHeavy48(const unsigned char data[],
+                                   const uint16_t nbytes,
+                                   const uint16_t repeat) {
+  if (nbytes < kMitsubishiHeavy48StateLength)
+    return;  // Not enough bytes to send a proper message.
+    sendGeneric(kMitsubishiHeavy48HdrMark, kMitsubishiHeavy48HdrSpace,
+              kMitsubishiHeavy48BitMark, kMitsubishiHeavy48OneSpace,
+              kMitsubishiHeavy48BitMark, kMitsubishiHeavy48ZeroSpace,
+              kMitsubishiHeavy48BitMark, 0,
+              data, nbytes, 38000, true, repeat, kDutyDefault);
+    // Se envía el footer separado
+    uint8_t auxFooter[kMitsubishiHeavy48StateLength] = {
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+    sendGeneric(0, kMitsubishiHeavy48FootrMark,
+              kMitsubishiHeavy48BitMark, kMitsubishiHeavy48OneSpace,
+              kMitsubishiHeavy48BitMark, kMitsubishiHeavy48ZeroSpace,
+              kMitsubishiHeavy48FootrSpace, 0,
+              auxFooter, 0, 38000, true, repeat, kDutyDefault); 
+}
+
 /// Send a MitsubishiHeavy 88-bit A/C message.
 /// Status: BETA / Appears to be working. Needs testing against a real device.
 /// @param[in] data The message to be sent.
@@ -1099,6 +1135,370 @@ String IRMitsubishiHeavy88Ac::toString(void) {
   result += addBoolToString(getClean(), kCleanStr);
   return result;
 }
+
+// Class for decoding and constructing MitsubishiHeavy48 AC messages.
+IRMitsubishiHeavy48Ac::IRMitsubishiHeavy48Ac(const uint16_t pin,
+                                             const bool inverted,
+                                             const bool use_modulation)
+    : _irsend(pin, inverted, use_modulation) { 
+        stateReset(); 
+}
+
+void IRMitsubishiHeavy48Ac::begin(void) { 
+    _irsend.begin(); 
+    stateReset(); 
+}
+
+#if SEND_MITSUBISHIHEAVY
+void IRMitsubishiHeavy48Ac::send(const uint16_t repeat) {
+  _irsend.sendMitsubishiHeavy48(this->getRaw(), kMitsubishiHeavy48StateLength,
+                                repeat);
+}
+#endif  // SEND_MITSUBISHIHEAVY
+
+/// Resets the internal state
+void IRMitsubishiHeavy48Ac::stateReset(void) {
+    memcpy(remote_state, kMitsubishiHeavy48ZjsSig, kMitsubishiHeavy48StateLength);
+    for (uint8_t i = 0; i < kMitsubishiHeavy48StateLength; i++){
+        if(i == 0){
+            remote_state[i] = 0xD5;
+        }else{
+            remote_state[i] = 0;
+        }        
+    } 
+}
+
+/// Flips the internal state
+void IRMitsubishiHeavy48Ac::flipState(void) {
+    if(remote_state[0] == 0xD5){
+        uint8_t aux_state[kMitsubishiHeavy48StateLength]= {
+        0xD5, 0x00, 0x00, 0x00, 0x00, 0x00};
+        for (uint8_t i = 0; i < kMitsubishiHeavy48StateLength; i++){
+            aux_state[kMitsubishiHeavy48StateLength - 1 - i] = flipByte(remote_state[i]);
+        } 
+        memcpy(remote_state, aux_state, kMitsubishiHeavy48StateLength);
+    }
+}
+
+/// Flips all bits from a byte
+/// @param[in] c The byte to flip
+/// @returns r Flipped byte
+uint8_t IRMitsubishiHeavy48Ac::flipByte(uint8_t c){
+  char r=0;
+  for(uint8_t i = 0; i < 8; i++){
+    r <<= 1;
+    r |= c & 1;
+    c >>= 1;
+  }
+  return r;
+}
+
+/// Get a PTR to the internal state/code for this protocol.
+/// @return PTR to a code for this protocol based on the current internal state.
+uint8_t *IRMitsubishiHeavy48Ac::getRaw(void) {
+    Serial.print("GetRawSig: ");
+    for (uint8_t i = 0; i < kMitsubishiHeavy48StateLength; i++){
+        Serial.print(kMitsubishiHeavy48ZjsSig[i], HEX);
+        Serial.print(" ");
+    } 
+    Serial.println("");
+    Serial.print("GetRawStateNoCHECK: ");
+    for (uint8_t i = 0; i < kMitsubishiHeavy48StateLength; i++){
+        Serial.print(remote_state[i], HEX);
+        Serial.print(" ");
+    } 
+    Serial.println("");
+    checksum();
+    Serial.print("GetRawStateCHECK: ");
+    for (uint8_t i = 0; i < kMitsubishiHeavy48StateLength; i++){
+        Serial.print(remote_state[i], HEX);
+        Serial.print(" ");
+    } 
+    Serial.println("");
+    this->flipState();
+    return remote_state;
+}
+
+/// Set the internal state from a valid code for this protocol.
+/// @param[in] data A valid code for this protocol.
+void IRMitsubishiHeavy48Ac::setRaw(const uint8_t *data) {
+  memcpy(remote_state, data, kMitsubishiHeavy48StateLength);
+}
+
+/// Turn on the HVAC
+void IRMitsubishiHeavy48Ac::on(void) { setPower(true); }
+
+/// Turn off the HVAC
+void IRMitsubishiHeavy48Ac::off(void) { setPower(false); }
+
+/// Set the power of the A/C.
+/// @param[in] pos The power to set.
+void IRMitsubishiHeavy48Ac::setPower(const bool on) {
+  setBit(&remote_state[2], kMitsubishiHeavy48PowerOffset, on);
+}
+
+/// Get the current power setting.
+/// @return The current power.
+bool IRMitsubishiHeavy48Ac::getPower(void) {
+  return GETBIT8(remote_state[2], kMitsubishiHeavy48PowerOffset);
+}
+
+/// Set the temperature of the A/C.
+/// @param[in] pos The temperature to set.
+void IRMitsubishiHeavy48Ac::setTemp(const uint8_t temp) {
+  uint8_t newtemp = temp;
+  newtemp = std::min(newtemp, kMitsubishiHeavy48MaxTemp);
+  newtemp = std::max(newtemp, kMitsubishiHeavy48MinTemp);
+  setBits(&remote_state[2], kHighNibble, kNibbleSize,
+          newtemp - kMitsubishiHeavy48MinTemp);
+}
+
+/// Get the current temperature setting.
+/// @return The current temperature.
+uint8_t IRMitsubishiHeavy48Ac::getTemp(void) {
+  return GETBITS8(remote_state[2], kHighNibble, kNibbleSize) +
+      kMitsubishiHeavy48MinTemp;
+}
+
+/// Set the fan speed of the A/C.
+/// @param[in] pos The fan speed to set.
+void IRMitsubishiHeavy48Ac::setFan(const uint8_t speed) {
+  uint8_t newspeed = speed;
+  switch (speed) {
+    case kMitsubishiHeavy48FanLow:
+    case kMitsubishiHeavy48FanMed:
+    case kMitsubishiHeavy48FanHigh: break;
+    default: newspeed = kMitsubishiHeavy48FanAuto;
+  }
+  setBits(&remote_state[4], kMitsubishiHeavy48FanByte4Offset,
+          kMitsubishiHeavy48FanByte4Size, newspeed);
+}
+
+/// Get the current fan speed setting.
+/// @return The current fan speed/mode.
+uint8_t IRMitsubishiHeavy48Ac::getFan(void) {
+  return GETBITS8(remote_state[4], kMitsubishiHeavy48FanByte4Offset,
+                  kMitsubishiHeavy48FanByte4Size);
+}
+
+/// Set the mode of the A/C.
+/// @param[in] pos The mode to set.
+void IRMitsubishiHeavy48Ac::setMode(const uint8_t mode) {
+  uint8_t newmode = mode;
+  switch (mode) {
+    case kMitsubishiHeavy48Cool:
+    case kMitsubishiHeavy48Dry:
+    case kMitsubishiHeavy48Heat:
+      break;
+    default:
+      newmode = kMitsubishiHeavy48Auto;
+  }
+  setBits(&remote_state[2], kMitsubishiHeavy48ModeOffset, kModeBitsSize, newmode);
+}
+/// Get the current mode setting.
+/// @return The current mode.
+uint8_t IRMitsubishiHeavy48Ac::getMode(void) {
+  return GETBITS8(remote_state[2], kMitsubishiHeavy48ModeOffset, kModeBitsSize);
+}
+
+/// Set the Vertical Swing mode of the A/C.
+/// @param[in] pos The position/mode to set the swing to.
+void IRMitsubishiHeavy48Ac::setSwingVertical(const uint8_t pos) {
+  uint8_t newpos;
+  switch (pos) {
+    case kMitsubishiHeavy48SwingVAuto:
+    case kMitsubishiHeavy48SwingVHigh: 
+        newpos = pos; 
+        break;
+    default: newpos = kMitsubishiHeavy48SwingVOff;
+  }
+  setBit(&remote_state[4], kMitsubishiHeavy48SwingVByte4Offset,
+         newpos & 1);
+}
+
+/// Get the current vertical swing setting.
+/// @return The current vertical swing.
+uint8_t IRMitsubishiHeavy48Ac::getSwingVertical(void) {
+  return GETBITS8(remote_state[5], kMitsubishiHeavy48SwingVByte4Offset,
+                  kMitsubishiHeavy48SwingVByte4Size);
+}
+
+/// Verify the given state has a ZJ-S signature.
+/// @param[in] state A ptr to a state to be checked.
+/// @return true, the check passed. Otherwise, false.
+bool IRMitsubishiHeavy48Ac::checkZjsSig(const uint8_t *state) {
+  for (uint8_t i = 0; i < kMitsubishiHeavy48StateLength; i++)
+    if (state[i] != kMitsubishiHeavy48ZjsSig[i]) return false;
+  return true;
+}
+
+// Protocol technically has no checksum, but does has inverted byte pairs.
+void IRMitsubishiHeavy48Ac::checksum(void) {
+  for (uint8_t i = 0;
+       i < kMitsubishiHeavy48StateLength;
+       i += 2) {
+    remote_state[i + 1] = ~remote_state[i];
+  }
+}
+
+/// Verify the checksum is valid for a given state.
+/// @param[in] state The array to verify the checksum of.
+/// @param[in] length The length/size of the state array.
+/// @return true, if the state has a valid checksum. Otherwise, false.
+/// Note: Technically it has no checksum, but does have inverted byte pairs.
+bool IRMitsubishiHeavy48Ac::validChecksum(const uint8_t *state,
+                                           const uint16_t length) {
+    // ToDo
+    return true;
+}
+
+/// Convert a stdAc::opmode_t enum into it's native setting.
+/// @param[in] position The enum to be converted.
+/// @return The native equivilant of the enum.
+uint8_t IRMitsubishiHeavy48Ac::convertMode(const stdAc::opmode_t mode) {
+  switch (mode) {
+    case stdAc::opmode_t::kCool: return kMitsubishiHeavy48Cool;
+    case stdAc::opmode_t::kHeat: return kMitsubishiHeavy48Heat;
+    case stdAc::opmode_t::kDry:  return kMitsubishiHeavy48Dry;
+    default:                     return kMitsubishiHeavy48Auto;
+  }
+}
+
+/// Convert a stdAc::fanspeed_t enum into it's native setting.
+/// @param[in] position The enum to be converted.
+/// @return The native equivilant of the enum.
+uint8_t IRMitsubishiHeavy48Ac::convertFan(const stdAc::fanspeed_t speed) {
+  switch (speed) {
+    // Assumes Econo is slower than Low.
+    case stdAc::fanspeed_t::kLow:    return kMitsubishiHeavy48FanLow;
+    case stdAc::fanspeed_t::kMedium: return kMitsubishiHeavy48FanMed;
+    case stdAc::fanspeed_t::kHigh:   return kMitsubishiHeavy48FanHigh;
+    default:                         return kMitsubishiHeavy48FanAuto;
+  }
+}
+
+/// Convert a stdAc::swingv_t enum into it's native setting.
+/// @param[in] position The enum to be converted.
+/// @return The native equivilant of the enum.
+uint8_t IRMitsubishiHeavy48Ac::convertSwingV(const stdAc::swingv_t position) {
+  switch (position) {
+    case stdAc::swingv_t::kAuto:    return kMitsubishiHeavy48SwingVAuto;
+    case stdAc::swingv_t::kHigh:    return kMitsubishiHeavy48SwingVHigh;
+    default:                        return kMitsubishiHeavy48SwingVOff;
+  }
+}
+
+/// Convert the current internal fan speed into its stdAc::fanspeed_t equivilant.
+/// @return The fanspeed_t equivilant of the native settings.
+stdAc::fanspeed_t IRMitsubishiHeavy48Ac::toCommonFanSpeed(const uint8_t speed) {
+  switch (speed) {
+    case kMitsubishiHeavy48FanHigh:  return stdAc::fanspeed_t::kHigh;
+    case kMitsubishiHeavy48FanMed:   return stdAc::fanspeed_t::kMedium;
+    case kMitsubishiHeavy48FanLow:   return stdAc::fanspeed_t::kLow;
+    default:                         return stdAc::fanspeed_t::kAuto;
+  }
+}
+
+/// Convert the current internal horizontal swing into its stdAc::swingh_t equivilant.
+/// @return The swingh_t equivilant of the native settings.
+stdAc::swingh_t IRMitsubishiHeavy48Ac::toCommonSwingH(const uint8_t pos) {
+    return stdAc::swingh_t::kOff;
+}
+
+/// Convert the current internal vertical swing into its stdAc::swingv_t equivilant.
+/// @return The swingv_t equivilant of the native settings.
+stdAc::swingv_t IRMitsubishiHeavy48Ac::toCommonSwingV(const uint8_t pos) {
+  switch (pos) {
+    case kMitsubishiHeavy48SwingVHigh:    return stdAc::swingv_t::kHigh;
+    case kMitsubishiHeavy48SwingVOff:     return stdAc::swingv_t::kOff;
+    default:                              return stdAc::swingv_t::kAuto;
+  }
+}
+/// Convert the current internal mode into its stdAc::opmode_t equivilant.
+/// @return The opmode_t equivilant of the native settings.
+stdAc::opmode_t IRMitsubishiHeavy48Ac::toCommonMode(const uint8_t mode) {
+  switch (mode) {
+    case kMitsubishiHeavy48Cool: return stdAc::opmode_t::kCool;
+    case kMitsubishiHeavy48Heat: return stdAc::opmode_t::kHeat;
+    case kMitsubishiHeavy48Dry:  return stdAc::opmode_t::kDry;
+    default:                   return stdAc::opmode_t::kAuto;
+  }
+}
+
+/// Convert the current internal state into its stdAc::state_t equivilant.
+/// @return The stdAc equivilant of the native settings.
+stdAc::state_t IRMitsubishiHeavy48Ac::toCommon(void) {
+  stdAc::state_t result;
+  result.protocol = decode_type_t::MITSUBISHI_HEAVY_48;
+  result.model = -1;  // No models used.
+  result.power = this->getPower();
+  result.mode = this->toCommonMode(this->getMode());
+  result.celsius = true;
+  result.degrees = this->getTemp();
+  result.fanspeed = this->toCommonFanSpeed(this->getFan());
+  result.swingv = this->toCommonSwingV(this->getSwingVertical());
+  result.swingh = stdAc::swingh_t::kOff;;
+  result.turbo = 0;
+  result.econo = 0;
+  result.clean = 0;
+  // Not supported.
+  result.quiet = false;
+  result.filter = false;
+  result.light = false;
+  result.beep = false;
+  result.sleep = -1;
+  result.clock = -1;
+  return result;
+}
+
+/// Convert the internal state into a human readable string.
+/// @return A string containing the settings in human-readable form.
+String IRMitsubishiHeavy48Ac::toString(void) {
+  String result = "";
+  result.reserve(140);  // Reserve some heap for the string to reduce fragging.
+  result += addBoolToString(getPower(), kPowerStr, false);
+  result += addModeToString(getMode(), kMitsubishiHeavy48Auto,
+                            kMitsubishiHeavy48Cool, kMitsubishiHeavy48Heat,
+                            kMitsubishiHeavy48Dry, 0);
+  result += addTempToString(getTemp());
+  result += addIntToString(getFan(), kFanStr);
+  result += kSpaceLBraceStr;
+  switch (this->getFan()) {
+    case kMitsubishiHeavy48FanAuto:
+      result += kAutoStr;
+      break;
+    case kMitsubishiHeavy48FanHigh:
+      result += kHighStr;
+      break;
+    case kMitsubishiHeavy48FanLow:
+      result += kLowStr;
+      break;
+    case kMitsubishiHeavy48FanMed:
+      result += kMedStr;
+      break;
+    default:
+      result += kUnknownStr;
+  }
+  result += ')';
+  result += addIntToString(getSwingVertical(), kSwingVStr);
+  result += kSpaceLBraceStr;
+  switch (this->getSwingVertical()) {
+    case kMitsubishiHeavy48SwingVAuto:
+      result += kAutoStr;
+      break;
+    case kMitsubishiHeavy48SwingVHigh:
+      result += kHighStr;
+      break;
+    case kMitsubishiHeavy48SwingVOff:
+      result += kOffStr;
+      break;
+    default:
+      result += kUnknownStr;
+  }
+  result += ')';
+  return result;
+}
+
 
 #if DECODE_MITSUBISHIHEAVY
 /// Decode the supplied Mitsubishi Heavy Industries A/C message.

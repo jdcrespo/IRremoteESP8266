@@ -369,6 +369,10 @@ class IRsend {
                         const uint16_t repeat = kMitsubishiACMinRepeat);
 #endif
 #if SEND_MITSUBISHIHEAVY
+  void sendMitsubishiHeavy48(
+      const unsigned char data[],
+      const uint16_t nbytes = kMitsubishiHeavy152StateLength,
+      const uint16_t repeat = kMitsubishiHeavy152MinRepeat);
   void sendMitsubishiHeavy88(
       const unsigned char data[],
       const uint16_t nbytes = kMitsubishiHeavy88StateLength,

@@ -26,6 +26,7 @@
 #include "ir_Midea.h"
 #include "ir_Mitsubishi.h"
 #include "ir_MitsubishiHeavy.h"
+#include "ir_MitsubishiHeavy48.h"
 #include "ir_Neoclima.h"
 #include "ir_Panasonic.h"
 #include "ir_Samsung.h"
@@ -320,6 +321,12 @@ void electra(IRElectraAc *ac,
                      const stdAc::swingv_t swingv, const bool quiet);
 #endif  // SEND_MITSUBISHI136
 #if SEND_MITSUBISHIHEAVY
+  void mitsubishiHeavy48(IRMitsubishiHeavy48Ac *ac,
+                         const bool on, const stdAc::opmode_t mode,
+                         const float degrees, const stdAc::fanspeed_t fan,
+                         const stdAc::swingv_t swingv,
+                         const stdAc::swingh_t swingh,
+                         const bool turbo, const bool econo, const bool clean);
   void mitsubishiHeavy88(IRMitsubishiHeavy88Ac *ac,
                          const bool on, const stdAc::opmode_t mode,
                          const float degrees, const stdAc::fanspeed_t fan,

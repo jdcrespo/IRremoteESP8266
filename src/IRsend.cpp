@@ -717,6 +717,8 @@ uint16_t IRsend::defaultBits(const decode_type_t protocol) {
       return kMitsubishiHeavy152Bits;
     case MITSUBISHI_HEAVY_88:
       return kMitsubishiHeavy88Bits;
+    case MITSUBISHI_HEAVY_48:
+      return kMitsubishiHeavy48Bits;
     case NEOCLIMA:
       return kNeoclimaBits;
     case PANASONIC_AC:
@@ -1141,6 +1143,9 @@ bool IRsend::send(const decode_type_t type, const uint8_t *state,
       break;
 #endif  // SEND_MITSUBISHI112
 #if SEND_MITSUBISHIHEAVY
+    case MITSUBISHI_HEAVY_48:
+      sendMitsubishiHeavy48(state, nbytes);
+      break;
     case MITSUBISHI_HEAVY_88:
       sendMitsubishiHeavy88(state, nbytes);
       break;
